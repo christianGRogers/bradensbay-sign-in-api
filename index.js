@@ -1,8 +1,7 @@
-
 const express = require('express');
 const cors = require('cors');
 const { initializeApp } = require('firebase/app');
-const { signInWithEmailAndPassword } = require('firebase/auth');
+const { getAuth, signInWithEmailAndPassword } = require('firebase/auth');
 
 const PORT = 3005;
 
@@ -17,8 +16,9 @@ const firebaseConfig = {
     measurementId: "G-DNJS8CVKWD"
 };
 
-const firebaseApp = initializeApp(firebaseConfig);
 
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
 
 const app = express();
 app.use(cors());
@@ -26,28 +26,31 @@ app.use(express.json());
 
 
 async function loginUser(email, password) {
-    signInWithEmailAndPassword(auth, email, password)
-        .then(async (userCredential) => {
-            uid = userCredential.user.uid;
-            return uid;
-        })
+    try {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        return { uid: userCredential.user.uid };
+    } catch (error) {
+        console.error('Error during login:', error.message);
+        throw error;
+    }
 }
+
 app.post('/sign-in', async (req, res) => {
     const { email, password } = req.body;
 
     if (!email || !password) {
-        return res.status(400).json({ error: 'email / password is required' });
+        return res.status(400).json({ error: 'Email and password are required' });
     }
 
     try {
         const result = await loginUser(email, password);
         return res.status(200).json(result);
     } catch (error) {
-        console.error(`Error processing request for email ${email}: ${error.message}`);
-        return res.status(500).json({ error: 'An error occurred while processing your request.' });
+        return res.status(500).json({ error: 'An error occurred during sign-in' });
     }
 });
 
+// Start the server
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
